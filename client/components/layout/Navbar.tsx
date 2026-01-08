@@ -57,12 +57,8 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <div className="h-10 w-10 olive-gradient rounded-xl flex items-center justify-center shadow-lg shadow-[#3d522b]/20 group-hover:scale-105 transition-transform">
-                        <Rocket className="text-white h-5 w-5" />
-                    </div>
-                    <div>
-                        <span className="text-xl font-black text-slate-900 tracking-tight uppercase">Growthory</span>
-                        <div className="h-0.5 w-0 bg-[#3d522b] group-hover:w-full transition-all duration-300"></div>
+                    <div className="h-12 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
+                        <img src="/logo.png" alt="Growthory Logo" className="h-full object-contain" />
                     </div>
                 </Link>
 

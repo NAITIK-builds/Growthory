@@ -9,11 +9,10 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-12 mb-20">
                 {/* Brand Column */}
                 <div className="md:col-span-4 space-y-6">
-                    <Link href="/" className="flex items-center gap-2">
-                        <div className="h-10 w-10 olive-gradient rounded-xl flex items-center justify-center">
-                            <Rocket className="text-white h-5 w-5" />
+                    <Link href="/" className="flex items-center gap-2 group">
+                        <div className="h-10 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
+                            <img src="/logo.png" alt="Growthory Logo" className="h-full object-contain" />
                         </div>
-                        <span className="text-xl font-black text-slate-900 uppercase tracking-tight">Growthory</span>
                     </Link>
                     <p className="text-slate-500 text-sm leading-relaxed max-w-xs font-medium">
                         Unified semantic intelligence for the global venture ecosystem. Bridging the gap between vision and capital.
