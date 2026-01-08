@@ -10,7 +10,7 @@ export default function Footer() {
                 {/* Brand Column */}
                 <div className="md:col-span-4 space-y-6">
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="h-10 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
+                        <div className="h-16 w-auto flex items-center justify-center transition-all duration-300 group-hover:scale-105">
                             <img src="/brand-logo.png" alt="Growthory Logo" className="h-full object-contain" />
                         </div>
                     </Link>
