@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Menu, X, Rocket, ChevronDown, Globe, Zap, Users, BarChart3, LogOut, User, Settings } from 'lucide-react';
@@ -57,8 +58,15 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <div className="h-12 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
-                        <img src="/logo.png" alt="Growthory Logo" className="h-full object-contain" />
+                    <div className="h-10 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
+                        <Image
+                            src="/brand-logo.png"
+                            alt="Growthory Logo"
+                            width={180}
+                            height={40}
+                            className="h-full w-auto object-contain"
+                            priority
+                        />
                     </div>
                 </Link>
 

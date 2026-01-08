@@ -11,7 +11,7 @@ export default function Footer() {
                 <div className="md:col-span-4 space-y-6">
                     <Link href="/" className="flex items-center gap-2 group">
                         <div className="h-10 w-auto flex items-center justify-center transition-transform group-hover:scale-105">
-                            <img src="/logo.png" alt="Growthory Logo" className="h-full object-contain" />
+                            <img src="/brand-logo.png" alt="Growthory Logo" className="h-full object-contain" />
                         </div>
                     </Link>
                     <p className="text-slate-500 text-sm leading-relaxed max-w-xs font-medium">
