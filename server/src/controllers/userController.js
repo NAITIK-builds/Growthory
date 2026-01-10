@@ -3,6 +3,8 @@ import { supabase } from '../config/supabase.js';
 // Get detailed user profile
 export const getUserProfile = async (req, res) => {
     const { id } = req.params;
+    const { currentUserId } = req.query;
+
     try {
         const { data: user, error: userError } = await supabase
             .from('users')
@@ -16,6 +18,22 @@ export const getUserProfile = async (req, res) => {
             .single();
 
         if (userError) throw userError;
+
+        // Check connection status if requester ID is provided
+        if (currentUserId) {
+            const { data: matches } = await supabase
+                .from('matches')
+                .select('status')
+                .or(`and(source_id.eq.${currentUserId},target_id.eq.${id}),and(source_id.eq.${id},target_id.eq.${currentUserId})`)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (matches && matches.length > 0) {
+                user.connection_status = matches[0].status;
+            } else {
+                user.connection_status = null;
+            }
+        }
 
         res.json(user);
     } catch (error) {

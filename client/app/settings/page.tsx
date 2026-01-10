@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/ToastProvider';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -91,7 +92,9 @@ export default function SettingsPage() {
             toast.success(`${type === 'ai' ? 'AI' : 'Ecosystem'} preferences synchronized!`);
             await loadUserData();
         } catch (error: any) {
-            toast.error(error.message || 'Synchronization failed');
+            console.error('Settings update error:', error);
+            const errorMessage = error.message || 'Failed to sync with ecosystem nodes';
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -259,18 +262,10 @@ export default function SettingsPage() {
                                                     setLoading(false);
                                                 }
                                             }}
-                                            disabled={loading}
-                                            className="px-10 py-4 bg-[#3d522b] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#2d3d20] transition-all shadow-xl shadow-[#3d522b]/20 disabled:opacity-50"
+                                            loading={loading}
+                                            className="px-10 py-4 bg-[#3d522b] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#2d3d20] transition-all shadow-xl shadow-[#3d522b]/20"
                                         >
-                                            {loading ? (
-                                                <span className="flex items-center gap-2">
-                                                    <Sparkles className="h-4 w-4 animate-spin" /> Saving...
-                                                </span>
-                                            ) : (
-                                                <span className="flex items-center gap-2">
-                                                    <Save className="h-4 w-4" /> Save Changes
-                                                </span>
-                                            )}
+                                            <Save className="h-4 w-4" /> Save Changes
                                         </Button>
                                     </form>
                                 </div>
@@ -332,10 +327,10 @@ export default function SettingsPage() {
                                             </div>
                                             <Button
                                                 type="submit"
-                                                disabled={loading}
-                                                className="mt-6 px-10 py-4 bg-[#3d522b] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#606c38] transition-all shadow-xl shadow-[#3d522b]/20 disabled:opacity-50"
+                                                loading={loading}
+                                                className="mt-6 px-10 py-4 bg-[#3d522b] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#606c38] transition-all shadow-xl shadow-[#3d522b]/20"
                                             >
-                                                {loading ? 'Updating...' : 'Update Password'}
+                                                Update Password
                                             </Button>
                                         </form>
                                     </div>
@@ -386,7 +381,7 @@ export default function SettingsPage() {
 
                                         <Button
                                             onClick={() => handleSettingsUpdate('ai')}
-                                            disabled={loading}
+                                            loading={loading}
                                             className="w-full py-4 rounded-2xl"
                                         >
                                             Synchronize AI Nodes
@@ -429,7 +424,7 @@ export default function SettingsPage() {
 
                                         <Button
                                             onClick={() => handleSettingsUpdate('eco')}
-                                            disabled={loading}
+                                            loading={loading}
                                             className="w-full py-4 rounded-2xl"
                                         >
                                             Update Ecosystem Protocol
@@ -441,6 +436,6 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

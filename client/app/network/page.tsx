@@ -17,7 +17,9 @@ import {
     ShieldCheck,
     MapPin,
     Network as NetworkIcon,
-    Loader2
+    Loader2,
+    Check,
+    X
 } from 'lucide-react';
 
 export default function NetworkPage() {
@@ -25,24 +27,83 @@ export default function NetworkPage() {
     const toast = useToast();
     const [user, setUser] = useState<any>(null);
     const [people, setPeople] = useState<any[]>([]);
+    const [connections, setConnections] = useState<any[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeRole, setActiveRole] = useState('all');
     const [tab, setTab] = useState('discover'); // discover, connections, pending
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:5000/api` : 'http://localhost:5000/api');
 
     const fetchPeople = async (query = '', role = 'all', userId = user?.id) => {
         setLoading(true);
         try {
             let url = `${API_URL}/network/explore?role=${role === 'all' ? '' : role}&searchQuery=${query}`;
             if (userId) url += `&currentUserId=${userId}`;
+            console.log(`Fetching Network: ${url}`);
             const res = await fetch(url);
+
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await res.text();
+                console.error("Network Page - Invalid JSON Response:", text.substring(0, 500)); // Log first 500 chars
+                throw new Error(`Expected JSON, got ${contentType}`);
+            }
+
             const data = await res.json();
             setPeople(Array.isArray(data) ? data : []);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Fetch network error:", err);
-            toast.error("Failed to sync with network nodes");
+            toast.error(err.message || "Failed to sync with ecosystem nodes");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchConnections = async (userId: string) => {
+        setLoading(true);
+        try {
+            const url = `${API_URL}/network/my-network/${userId}`;
+            console.log(`Fetching Connections: ${url}`);
+            const res = await fetch(url);
+
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await res.text();
+                console.error("Network Page - Connections Invalid JSON:", text.substring(0, 500));
+                throw new Error(`Expected JSON, got ${contentType}`);
+            }
+
+            const data = await res.json();
+            setConnections(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Fetch connections error:", err);
+            toast.error("Failed to load connections");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchPendingRequests = async (userId: string) => {
+        setLoading(true);
+        try {
+            const url = `${API_URL}/network/pending-requests/${userId}`;
+            console.log(`Fetching Pending: ${url}`);
+            const res = await fetch(url);
+
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await res.text();
+                console.error("Network Page - Pending Requests Invalid JSON:", text.substring(0, 500));
+                throw new Error(`Expected JSON, got ${contentType}`);
+            }
+
+            const data = await res.json();
+            setPendingRequests(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Fetch pending requests error:", err);
+            toast.error("Failed to load pending requests");
         } finally {
             setLoading(false);
         }
@@ -60,6 +121,18 @@ export default function NetworkPage() {
         };
         checkUser();
     }, [router]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        if (tab === 'discover') {
+            fetchPeople(searchQuery, activeRole, user.id);
+        } else if (tab === 'connections') {
+            fetchConnections(user.id);
+        } else if (tab === 'pending') {
+            fetchPendingRequests(user.id);
+        }
+    }, [tab, user]);
 
     const handleConnect = async (targetId: string, role: string) => {
         if (!user) return;
@@ -85,6 +158,27 @@ export default function NetworkPage() {
             }
         } catch (err) {
             toast.error("Network synchronization lost");
+        }
+    };
+
+    const handleRespondToRequest = async (matchId: string, action: 'accept' | 'reject') => {
+        try {
+            const res = await fetch(`${API_URL}/network/respond/${matchId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                toast.success(action === 'accept' ? 'Connection accepted!' : 'Request rejected');
+                // Refresh pending requests
+                if (user) fetchPendingRequests(user.id);
+            } else {
+                toast.error(data.error || "Failed to respond");
+            }
+        } catch (err) {
+            toast.error("Failed to respond to request");
         }
     };
 
@@ -200,77 +294,166 @@ export default function NetworkPage() {
                             </div>
                         </div>
 
-                        {/* People Feed */}
+                        {/* Content Feed - Changes based on tab */}
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
                                 <Loader2 className="h-10 w-10 text-[#3d522b] animate-spin mb-4" />
                                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Scanning Ecosystem Nodes...</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                {people.length > 0 ? people.map((person) => (
-                                    <div key={person.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:border-[#3d522b]/30 transition-all group">
-                                        <div className="h-16 bg-slate-50 relative">
-                                            <div className="absolute -bottom-8 left-6">
-                                                <div className="h-16 w-16 rounded-2xl bg-white p-1 shadow-md border border-slate-100">
-                                                    <div className="h-full w-full rounded-xl bg-[#3d522b]/5 flex items-center justify-center text-xl font-black text-[#3d522b]">
-                                                        {person.full_name?.[0].toUpperCase()}
+                            <>
+                                {/* Discover Tab */}
+                                {tab === 'discover' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {people.length > 0 ? people.map((person) => (
+                                            <div key={person.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:border-[#3d522b]/30 transition-all group">
+                                                <div className="h-16 bg-slate-50 relative">
+                                                    <div className="absolute -bottom-8 left-6">
+                                                        <div className="h-16 w-16 rounded-2xl bg-white p-1 shadow-md border border-slate-100">
+                                                            <div className="h-full w-full rounded-xl bg-[#3d522b]/5 flex items-center justify-center text-xl font-black text-[#3d522b]">
+                                                                {person.full_name?.[0].toUpperCase()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-6 pt-10">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <h3
+                                                                className="font-bold text-slate-900 group-hover:text-[#3d522b] transition-colors cursor-pointer hover:underline"
+                                                                onClick={() => router.push(`/profile/${person.id}`)}
+                                                            >
+                                                                {person.full_name}
+                                                            </h3>
+                                                            <p className="text-[10px] font-black text-[#3d522b] uppercase tracking-widest">{person.role}</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 font-medium mb-6 line-clamp-2 h-8 italic">
+                                                        {person.details || 'Building the future of the ecosystem.'}
+                                                    </p>
+
+                                                    <div className="flex items-center gap-2 mb-6">
+                                                        <MapPin className="h-3 w-3 text-slate-400" />
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remote Cluster</span>
+                                                    </div>
+
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            onClick={() => !person.connected && handleConnect(person.id, person.role)}
+                                                            variant={person.connected ? 'outline' : person.pending ? 'outline' : 'primary'}
+                                                            disabled={person.pending || person.connected}
+                                                            className={`flex-grow rounded-xl h-10 text-[10px] font-black uppercase tracking-widest py-0 ${person.connected ? 'border-[#3d522b]/30 text-[#3d522b] bg-[#3d522b]/5' : person.pending ? 'border-slate-200 text-slate-400' : 'bg-[#3d522b]'}`}
+                                                        >
+                                                            {person.connected ? 'Connected' : person.pending ? 'Request Sent' : (
+                                                                <span className="flex items-center justify-center gap-2">
+                                                                    <UserPlus className="h-3 w-3" /> Connect
+                                                                </span>
+                                                            )}
+                                                        </Button>
+                                                        <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-[#3d522b] hover:bg-[#3d522b]/5 transition-all">
+                                                            <ArrowUpRight className="h-4 w-4" />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="p-6 pt-10">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <h3
-                                                        className="font-bold text-slate-900 group-hover:text-[#3d522b] transition-colors cursor-pointer hover:underline"
-                                                        onClick={() => router.push(`/profile/${person.id}`)}
-                                                    >
-                                                        {person.full_name}
-                                                    </h3>
-                                                    <p className="text-[10px] font-black text-[#3d522b] uppercase tracking-widest">{person.role}</p>
-                                                </div>
+                                        )) : (
+                                            <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                                                <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                                                <h3 className="text-lg font-bold text-slate-900 mb-2">No Nodes Isolated</h3>
+                                                <p className="text-slate-500 text-sm max-w-xs mx-auto">Try adjusting your filters or search signal to discover more nodes.</p>
                                             </div>
-                                            <p className="text-xs text-slate-500 font-medium mb-6 line-clamp-2 h-8 italic">
-                                                {person.details || 'Building the future of the ecosystem.'}
-                                            </p>
-
-                                            <div className="flex items-center gap-2 mb-6">
-                                                <MapPin className="h-3 w-3 text-slate-400" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remote Cluster</span>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    onClick={() => !person.connected && handleConnect(person.id, person.role)}
-                                                    variant={person.connected ? 'outline' : person.pending ? 'outline' : 'primary'}
-                                                    disabled={person.pending || person.connected}
-                                                    className={`flex-grow rounded-xl h-10 text-[10px] font-black uppercase tracking-widest py-0 ${person.connected ? 'border-[#3d522b]/30 text-[#3d522b] bg-[#3d522b]/5' : person.pending ? 'border-slate-200 text-slate-400' : 'bg-[#3d522b]'}`}
-                                                >
-                                                    {person.connected ? 'Connected' : person.pending ? 'Request Sent' : (
-                                                        <span className="flex items-center justify-center gap-2">
-                                                            <UserPlus className="h-3 w-3" /> Connect
-                                                        </span>
-                                                    )}
-                                                </Button>
-                                                <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-[#3d522b] hover:bg-[#3d522b]/5 transition-all">
-                                                    <ArrowUpRight className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )) : (
-                                    <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
-                                        <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                                        <h3 className="text-lg font-bold text-slate-900 mb-2">No Nodes Isolated</h3>
-                                        <p className="text-slate-500 text-sm max-w-xs mx-auto">Try adjusting your filters or search signal to discover more nodes.</p>
+                                        )}
                                     </div>
                                 )}
-                            </div>
+
+                                {/* Pending Requests Tab */}
+                                {tab === 'pending' && (
+                                    <div className="space-y-4">
+                                        {pendingRequests.length > 0 ? pendingRequests.map((request) => (
+                                            <div key={request.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:border-[#3d522b]/30 transition-all">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-14 w-14 rounded-2xl bg-[#3d522b]/5 flex items-center justify-center text-lg font-black text-[#3d522b]">
+                                                            {request.from.full_name?.[0].toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-900 mb-1">{request.from.full_name}</h3>
+                                                            <p className="text-[10px] font-black text-[#3d522b] uppercase tracking-widest">{request.from.role}</p>
+                                                            <p className="text-xs text-slate-400 mt-1">
+                                                                {new Date(request.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            onClick={() => handleRespondToRequest(request.id, 'accept')}
+                                                            className="bg-[#3d522b] text-white hover:bg-[#2d3d20] rounded-xl px-6 h-10"
+                                                        >
+                                                            <Check className="h-4 w-4 mr-2" />
+                                                            Accept
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleRespondToRequest(request.id, 'reject')}
+                                                            variant="outline"
+                                                            className="border-red-200 text-red-500 hover:bg-red-50 rounded-xl px-6 h-10"
+                                                        >
+                                                            <X className="h-4 w-4 mr-2" />
+                                                            Reject
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                                                <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                                                <h3 className="text-lg font-bold text-slate-900 mb-2">No Pending Requests</h3>
+                                                <p className="text-slate-500 text-sm max-w-xs mx-auto">You don't have any connection requests at the moment.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Connections Tab */}
+                                {tab === 'connections' && (
+                                    <div className="space-y-4">
+                                        {connections.length > 0 ? connections.map((connection) => (
+                                            <div key={connection.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:border-[#3d522b]/30 transition-all">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-14 w-14 rounded-2xl bg-[#3d522b]/5 flex items-center justify-center text-lg font-black text-[#3d522b]">
+                                                            C
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-900 mb-1">Connected User</h3>
+                                                            <p className="text-[10px] font-black text-[#3d522b] uppercase tracking-widest">Connection</p>
+                                                            <p className="text-xs text-slate-400 mt-1">
+                                                                Connected on {new Date(connection.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="rounded-xl px-6 h-10"
+                                                        onClick={() => router.push(`/profile/${connection.source_id === user?.id ? connection.target_id : connection.source_id}`)}
+                                                    >
+                                                        View Profile
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                                                <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                                                <h3 className="text-lg font-bold text-slate-900 mb-2">No Connections Yet</h3>
+                                                <p className="text-slate-500 text-sm max-w-xs mx-auto">Start connecting with people in the Discover tab.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
                         )}
 
                         {/* Pagination / Load More */}
-                        {!loading && people.length > 0 && (
+                        {!loading && tab === 'discover' && people.length > 0 && (
                             <div className="flex justify-center pt-8">
                                 <button className="px-8 py-3 bg-white border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-[#3d522b] hover:border-[#3d522b]/30 transition-all shadow-sm">
                                     Load More Signal

@@ -35,7 +35,8 @@ export const getExplorePeople = async (req, res) => {
             const { data: matches } = await supabase
                 .from('matches')
                 .select('target_id, source_id, status')
-                .or(`source_id.eq.${currentUserId},target_id.eq.${currentUserId}`);
+                .or(`source_id.eq.${currentUserId},target_id.eq.${currentUserId}`)
+                .order('created_at', { ascending: false });
             existingMatches = matches || [];
         }
 
@@ -77,6 +78,19 @@ export const sendConnectionRequest = async (req, res) => {
     const { source_id, target_id, match_type: requestedType } = req.body;
 
     try {
+        // Check for existing pending/accepted request
+        const { data: existingMatches } = await supabase
+            .from('matches')
+            .select('id, status')
+            .or(`and(source_id.eq.${source_id},target_id.eq.${target_id}),and(source_id.eq.${target_id},target_id.eq.${source_id})`);
+
+        if (existingMatches?.length > 0) {
+            const active = existingMatches.find(m => m.status === 'pending' || m.status === 'accepted');
+            if (active) {
+                return res.status(400).json({ error: active.status === 'pending' ? 'Connection request already pending' : 'Already connected' });
+            }
+        }
+
         // Fetch source and target roles to determine correct match_type if not provided
         const { data: users, error: userError } = await supabase
             .from('users')
@@ -136,6 +150,81 @@ export const getMyNetwork = async (req, res) => {
 
         if (error) throw error;
         res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Get pending connection requests (received by user)
+export const getPendingRequests = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Step 1: Get the pending matches first
+        const { data: matches, error: matchError } = await supabase
+            .from('matches')
+            .select('*')
+            .eq('target_id', userId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        if (matchError) throw matchError;
+
+        if (!matches || matches.length === 0) {
+            return res.json([]);
+        }
+
+        // Step 2: Get the user details for the source_ids
+        const sourceIds = matches.map(m => m.source_id);
+
+        const { data: users, error: userError } = await supabase
+            .from('users')
+            .select('id, full_name, avatar_url, role')
+            .in('id', sourceIds);
+
+        if (userError) throw userError;
+
+        // Step 3: Map users back to matches
+        const requests = matches.map(match => {
+            const sender = users.find(u => u.id === match.source_id);
+            if (!sender) return null; // Should not happen if data integrity is good
+
+            return {
+                id: match.id,
+                from: {
+                    id: sender.id,
+                    full_name: sender.full_name,
+                    avatar_url: sender.avatar_url,
+                    role: sender.role
+                },
+                match_type: match.match_type,
+                created_at: match.created_at
+            };
+        }).filter(Boolean); // Filter out any nulls if user wasn't found
+
+        res.json(requests);
+    } catch (error) {
+        console.error("Pending requests error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Accept or reject a connection request
+export const respondToRequest = async (req, res) => {
+    const { matchId } = req.params;
+    const { action } = req.body; // 'accept' or 'reject'
+
+    try {
+        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+
+        const { data, error } = await supabase
+            .from('matches')
+            .update({ status: newStatus })
+            .eq('id', matchId)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -2,9 +2,13 @@ import React from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
-const Layout = ({ children }) => {
+interface LayoutProps {
+    children: React.ReactNode;
+}
+
+const Layout = ({ children }: LayoutProps) => {
     return (
-        <div className="min-h-screen flex flex-col bg-[#050505]">
+        <div className="min-h-screen flex flex-col bg-[#f8faf7]">
             <Navbar />
             <main className="flex-grow">
                 {children}
@@ -15,3 +19,4 @@ const Layout = ({ children }) => {
 };
 
 export default Layout;
+

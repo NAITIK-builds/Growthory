@@ -32,7 +32,11 @@ export default function PublicProfilePage() {
                 }
 
                 // 2. Fetch public profile
-                const res = await fetch(`${API_URL}/users/${profileId}`);
+                let url = `${API_URL}/users/${profileId}`;
+                if (session?.user?.id) {
+                    url += `?currentUserId=${session.user.id}`;
+                }
+                const res = await fetch(url);
                 if (!res.ok) throw new Error("Profile not found");
                 const userData = await res.json();
                 setProfileUser(userData);
@@ -135,10 +139,13 @@ export default function PublicProfilePage() {
                             <div className="flex flex-col gap-3">
                                 <Button
                                     onClick={handleConnect}
-                                    disabled={connecting}
-                                    className="w-full h-14 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-[#3d522b]/10"
+                                    disabled={connecting || profileUser.connection_status === 'pending' || profileUser.connection_status === 'accepted'}
+                                    className={`w-full h-14 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl ${profileUser.connection_status === 'accepted' ? 'bg-[#3d522b]/10 text-[#3d522b] shadow-none' : profileUser.connection_status === 'pending' ? 'bg-slate-100 text-slate-400 shadow-none' : 'shadow-[#3d522b]/10'}`}
                                 >
-                                    {connecting ? 'Syncing...' : <><UserPlus className="h-4 w-4 mr-2" /> Connect Node</>}
+                                    {connecting ? 'Syncing...' :
+                                        profileUser.connection_status === 'accepted' ? <><Shield className="h-4 w-4 mr-2" /> Connected</> :
+                                            profileUser.connection_status === 'pending' ? <><Loader2 className="h-4 w-4 mr-2" /> Request Sent</> :
+                                                <><UserPlus className="h-4 w-4 mr-2" /> Connect Node</>}
                                 </Button>
                                 <button className="w-full h-14 rounded-2xl border border-slate-200 text-slate-400 hover:text-[#3d522b] hover:border-[#3d522b]/30 font-black uppercase text-xs tracking-[0.2em] transition-all">
                                     Follow Signal

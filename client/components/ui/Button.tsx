@@ -1,10 +1,12 @@
 import React, { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { PulseLoader } from './LoadingSpinner';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    loading?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -12,9 +14,11 @@ const Button: React.FC<ButtonProps> = ({
     variant = 'primary',
     size = 'md',
     className,
+    loading = false,
+    disabled,
     ...props
 }) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
+    const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
 
     const variants = {
         primary: 'bg-[#3d522b] text-white hover:bg-[#2d3d20] focus:ring-[#3d522b] shadow-lg shadow-[#3d522b]/20 hover:shadow-xl hover:shadow-[#3d522b]/30 active:scale-[0.98] transition-all duration-300',
@@ -29,12 +33,26 @@ const Button: React.FC<ButtonProps> = ({
         lg: 'h-12 px-6 text-lg'
     };
 
+    const loaderSizes = {
+        sm: 'sm' as const,
+        md: 'sm' as const,
+        lg: 'md' as const
+    };
+
     return (
         <button
             className={cn(baseStyles, variants[variant], sizes[size], className)}
+            disabled={disabled || loading}
             {...props}
         >
-            {children}
+            {loading ? (
+                <>
+                    <PulseLoader size={loaderSizes[size]} />
+                    <span className="opacity-70">Loading...</span>
+                </>
+            ) : (
+                children
+            )}
         </button>
     );
 };

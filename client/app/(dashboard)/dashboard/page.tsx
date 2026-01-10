@@ -48,11 +48,20 @@ export default function Dashboard() {
             }
             setUser(session.user);
 
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:5000/api` : 'http://localhost:5000/api');
 
             try {
                 // Fetch All Startups for the Feed
+                console.log(`Fetching Startups: ${API_URL}/startups`);
                 const res = await fetch(`${API_URL}/startups`);
+
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await res.text();
+                    console.error("Dashboard - Invalid JSON Response:", text.substring(0, 500));
+                    throw new Error(`Expected JSON, got ${contentType}`);
+                }
+
                 const allStartups = await res.json();
 
                 // Ensure allStartups is an array for feed and for finding profile
@@ -65,9 +74,9 @@ export default function Dashboard() {
                     const myCol = startupsArray.find((s: any) => s.founder_id === session.user.id);
                     setMyProfile(myCol);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Dashboard feed fetch error:", err);
-                toast.error("Failed to sync with ecosystem nodes");
+                toast.error(err.message || "Failed to sync with ecosystem nodes");
                 setStartups([]);
             }
 
